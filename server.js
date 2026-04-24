@@ -7,31 +7,34 @@ const multer = require('multer');
 
 const app = express();
 
-// ✅ Dynamic PORT for deployment
+// ✅ PORT
 const PORT = process.env.PORT || 5000;
 
-// ✅ Allow both local + deployed frontend
+// ✅ CORS (safe for dev + prod)
 app.use(cors({
     origin: [
         "http://localhost:3000",
-        process.env.FRONTEND_URL // add this in env when deployed
+        process.env.FRONTEND_URL
     ],
     credentials: true
 }));
 
 app.use(express.json());
 
-// --- ROOT ROUTE (fixes 404) ---
+// ✅ Health check route
 app.get("/", (req, res) => {
     res.send("🚀 Backend is running");
 });
 
-// --- MONGODB ---
-mongoose.connect(process.env.MONGO_URI, { family: 4 })
-    .then(() => console.log("✅ MONGO CONNECTED"))
-    .catch(err => console.log("❌ MONGO ERROR:", err.message));
+// ================= MONGODB =================
+mongoose.connect(process.env.MONGO_URI)
+    .then(() => console.log("✅ MongoDB Connected"))
+    .catch(err => {
+        console.error("❌ MongoDB Error:", err.message);
+        process.exit(1); // stop app if DB fails
+    });
 
-// --- S3 CONFIG ---
+// ================= AWS S3 =================
 const s3 = new S3Client({
     region: process.env.AWS_REGION,
     credentials: {
@@ -40,10 +43,13 @@ const s3 = new S3Client({
     }
 });
 
-// --- MULTER MEMORY ---
-const upload = multer({ storage: multer.memoryStorage() });
+// ================= MULTER =================
+const upload = multer({
+    storage: multer.memoryStorage(),
+    limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+});
 
-// --- AUTH ---
+// ================= AUTH =================
 app.post('/api/signup', (req, res) => {
     res.json({ message: "Signup successful" });
 });
@@ -52,7 +58,7 @@ app.post('/api/login', (req, res) => {
     res.json({ message: "Login successful", token: "jwt_123" });
 });
 
-// --- GET FILES ---
+// ================= GET FILES =================
 app.get('/api/notes', async (req, res) => {
     try {
         const data = await s3.send(new ListObjectsV2Command({
@@ -70,12 +76,12 @@ app.get('/api/notes', async (req, res) => {
 
         res.json(notes);
     } catch (err) {
-        console.error("AWS List Error:", err);
-        res.status(500).json({ error: err.message });
+        console.error("❌ AWS List Error:", err);
+        res.status(500).json({ error: "Failed to fetch notes" });
     }
 });
 
-// --- UPLOAD ---
+// ================= UPLOAD =================
 app.post('/api/upload', upload.single('file'), async (req, res) => {
     try {
         if (!req.file) {
@@ -91,17 +97,17 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
             ContentType: req.file.mimetype
         }));
 
-        const url = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileKey}`;
+        const fileUrl = `https://${process.env.AWS_BUCKET_NAME}.s3.${process.env.AWS_REGION}.amazonaws.com/${fileKey}`;
 
-        res.json({ url });
+        res.json({ url: fileUrl });
 
     } catch (err) {
-        console.error("UPLOAD ERROR:", err);
-        res.status(500).json({ error: err.message });
+        console.error("❌ Upload Error:", err);
+        res.status(500).json({ error: "Upload failed" });
     }
 });
 
-// --- START SERVER ---
+// ================= START SERVER =================
 app.listen(PORT, () => {
-    console.log(`🚀 BACKEND RUNNING ON PORT ${PORT}`);
+    console.log(`🚀 Server running on port ${PORT}`);
 });
