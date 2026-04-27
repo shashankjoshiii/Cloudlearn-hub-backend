@@ -7,34 +7,34 @@ const multer = require('multer');
 
 const app = express();
 
-// ✅ PORT
+// ✅ Use Render's PORT or default to 5000
 const PORT = process.env.PORT || 5000;
 
-// ✅ CORS (safe for dev + prod)
+// ✅ CORS configuration for Local and Vercel production
 app.use(cors({
     origin: [
         "http://localhost:3000",
-        process.env.FRONTEND_URL
+        process.env.FRONTEND_URL 
     ],
     credentials: true
 }));
 
 app.use(express.json());
 
-// ✅ Health check route
+// ✅ Health check route to verify backend is live
 app.get("/", (req, res) => {
-    res.send("🚀 Backend is running");
+    res.send("🚀 CloudLearn Hub Backend is Live");
 });
 
-// ================= MONGODB =================
+// ================= MONGODB ATLAS =================
 mongoose.connect(process.env.MONGO_URI)
-    .then(() => console.log("✅ MongoDB Connected"))
+    .then(() => console.log("✅ MongoDB Connected Successfully"))
     .catch(err => {
-        console.error("❌ MongoDB Error:", err.message);
-        process.exit(1); // stop app if DB fails
+        console.error("❌ MongoDB Connection Error:", err.message);
+        process.exit(1); 
     });
 
-// ================= AWS S3 =================
+// ================= AWS S3 CONFIG =================
 const s3 = new S3Client({
     region: process.env.AWS_REGION,
     credentials: {
@@ -43,13 +43,13 @@ const s3 = new S3Client({
     }
 });
 
-// ================= MULTER =================
+// ================= MULTER (MEMORY STORAGE) =================
 const upload = multer({
     storage: multer.memoryStorage(),
     limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
 });
 
-// ================= AUTH =================
+// ================= AUTH ENDPOINTS =================
 app.post('/api/signup', (req, res) => {
     res.json({ message: "Signup successful" });
 });
@@ -58,7 +58,7 @@ app.post('/api/login', (req, res) => {
     res.json({ message: "Login successful", token: "jwt_123" });
 });
 
-// ================= GET FILES =================
+// ================= GET FILES FROM S3 =================
 app.get('/api/notes', async (req, res) => {
     try {
         const data = await s3.send(new ListObjectsV2Command({
@@ -77,11 +77,11 @@ app.get('/api/notes', async (req, res) => {
         res.json(notes);
     } catch (err) {
         console.error("❌ AWS List Error:", err);
-        res.status(500).json({ error: "Failed to fetch notes" });
+        res.status(500).json({ error: "Failed to fetch notes from cloud" });
     }
 });
 
-// ================= UPLOAD =================
+// ================= UPLOAD TO S3 =================
 app.post('/api/upload', upload.single('file'), async (req, res) => {
     try {
         if (!req.file) {
@@ -108,6 +108,7 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
 });
 
 // ================= START SERVER =================
-app.listen(PORT, () => {
+// ✅ "0.0.0.0" is critical for cloud hosting and local network access
+app.listen(PORT, "0.0.0.0", () => {
     console.log(`🚀 Server running on port ${PORT}`);
 });
