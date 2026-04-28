@@ -110,5 +110,5 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
 // ================= START SERVER =================
 // ✅ "0.0.0.0" is critical for cloud hosting and local network access
 app.listen(PORT, "0.0.0.0", () => {
-    console.log(`🚀 Server running on port ${PORT}`);
+    console.log(`🚀Server running on port ${PORT}`);
 });
