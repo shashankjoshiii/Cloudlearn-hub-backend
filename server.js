@@ -7,34 +7,25 @@ const multer = require('multer');
 
 const app = express();
 
-// ✅ Use Render's PORT or default to 5000
 const PORT = process.env.PORT || 5000;
 
-// ✅ CORS configuration for Local and Vercel production
-app.use(cors({
-    origin: [
-        "http://localhost:3000",
-        process.env.FRONTEND_URL 
-    ],
-    credentials: true
-}));
+/* ===== TEMPORARY CORS FOR DEBUGGING ===== */
+app.use(cors());
+app.options('*', cors());
 
 app.use(express.json());
 
-// ✅ Health check route to verify backend is live
 app.get("/", (req, res) => {
     res.send("🚀 CloudLearn Hub Backend is Live");
 });
 
-// ================= MONGODB ATLAS =================
 mongoose.connect(process.env.MONGO_URI)
     .then(() => console.log("✅ MongoDB Connected Successfully"))
     .catch(err => {
         console.error("❌ MongoDB Connection Error:", err.message);
-        process.exit(1); 
+        process.exit(1);
     });
 
-// ================= AWS S3 CONFIG =================
 const s3 = new S3Client({
     region: process.env.AWS_REGION,
     credentials: {
@@ -43,22 +34,23 @@ const s3 = new S3Client({
     }
 });
 
-// ================= MULTER (MEMORY STORAGE) =================
 const upload = multer({
     storage: multer.memoryStorage(),
-    limits: { fileSize: 10 * 1024 * 1024 } // 10MB limit
+    limits: { fileSize: 10 * 1024 * 1024 }
 });
 
-// ================= AUTH ENDPOINTS =================
 app.post('/api/signup', (req, res) => {
     res.json({ message: "Signup successful" });
 });
 
 app.post('/api/login', (req, res) => {
-    res.json({ message: "Login successful", token: "jwt_123" });
+    console.log("Login request received");
+    res.json({
+        message: "Login successful",
+        token: "jwt_123"
+    });
 });
 
-// ================= GET FILES FROM S3 =================
 app.get('/api/notes', async (req, res) => {
     try {
         const data = await s3.send(new ListObjectsV2Command({
@@ -81,7 +73,6 @@ app.get('/api/notes', async (req, res) => {
     }
 });
 
-// ================= UPLOAD TO S3 =================
 app.post('/api/upload', upload.single('file'), async (req, res) => {
     try {
         if (!req.file) {
@@ -107,8 +98,6 @@ app.post('/api/upload', upload.single('file'), async (req, res) => {
     }
 });
 
-// ================= START SERVER =================
-// ✅ "0.0.0.0" is critical for cloud hosting and local network access
-app.listen(PORT, "0.0.0.0", () => {
-    console.log(`🚀Server running on port ${PORT}`);
+app.listen(PORT, () => {
+    console.log(`🚀 Server running on port ${PORT}`);
 });
